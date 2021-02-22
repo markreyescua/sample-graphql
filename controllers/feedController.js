@@ -3,7 +3,6 @@ const path = require("path");
 const { validationResult } = require("express-validator");
 const Feed = require("../models/feed");
 const User = require("../models/user");
-const io = require("../appSocket");
 
 exports.getFeeds = async (req, res, next) => {
   let currentPage = +req.query.page || 1;
@@ -14,11 +13,7 @@ exports.getFeeds = async (req, res, next) => {
   try {
     const count = await Feed.find().countDocuments();
     totalPage = Math.ceil(count / perPage);
-    if (totalPage <= currentPage) {
-      nextPage = currentPage;
-    } else {
-      nextPage = currentPage + 1;
-    }
+    nextPage = totalPage <= currentPage ? currentPage : currentPage + 1;
 
     const feeds = await Feed.find()
       .select("-_id -__v -updatedAt")
@@ -96,12 +91,6 @@ exports.postFeeds = async (req, res, next) => {
     const user = await User.findById(req.userId);
     user.feeds.push(post);
     await user.save();
-
-    io.getIO().emit("feed", {
-      action: "create-feed",
-      feed: post,
-    });
-
     res.status(201).json({
       message: "Successfully posted feed!",
       feed: post,

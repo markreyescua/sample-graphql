@@ -7,6 +7,9 @@ const session = require("express-session");
 const MongoDbStore = require("connect-mongodb-session")(session);
 const multer = require("multer");
 const constants = require("./util/constants");
+const { graphqlHTTP } = require("express-graphql");
+const graphqlSchema = require("./graphql/schema");
+const graphqlResolver = require("./graphql/resolvers");
 
 const app = express();
 const store = new MongoDbStore({
@@ -34,11 +37,6 @@ const fileFilter = (req, file, cb) => {
     cb(null, false);
   }
 };
-
-// controllers
-const feedRoutes = require("./routes/feedRoutes");
-const authRoutes = require("./routes/authRoutes");
-const { init } = require("./models/feed");
 
 // middlewares
 app.use(cookieParser());
@@ -68,8 +66,13 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/feed", feedRoutes);
-app.use("/auth", authRoutes);
+app.use(
+  "/graphql",
+  graphqlHTTP({
+    schema: graphqlSchema,
+    rootValue: graphqlResolver,
+  })
+);
 
 // Error Handler
 app.use((error, req, res, next) => {
@@ -87,11 +90,7 @@ mongoose
   .connect(constants.MONGODB_URI)
   .then(() => {
     console.log("Connected to then server");
-    const server = app.listen(8080);
-    const io = require("./appSocket").init(server);
-    io.on("connection", (socket) => {
-      console.log(`connected: ${socket}`);
-    });
+    app.listen(8080);
   })
   .catch((err) => {
     console.log(err);
